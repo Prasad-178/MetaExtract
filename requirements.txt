@@ -5,26 +5,26 @@ python-multipart==0.0.6
 aiofiles==23.2.1
 
 # AI and Schema Processing
-openai==1.12.0
+openai==1.55.3
 jsonschema==4.20.0
-pydantic==2.5.0
+pydantic==2.10.2
 pydantic-settings==2.1.0
 
 # Utilities
-python-dotenv>=1.0.0
-requests>=2.25.0 
-typing-extensions==4.8.0
+python-dotenv==1.0.0
+requests==2.25.0 
+typing-extensions==4.12.2
 
 # Enhanced Processing (for evaluation metrics)
-psutil>=5.9.0
+psutil==5.9.0
 
 # Data Processing
-pandas>=2.0.0
-numpy>=1.24.0
+pandas==2.0.0
+numpy==1.24.0
 
 # File Processing
-PyPDF2>=3.0.1
-pdfplumber>=0.9.0
+PyPDF2==3.0.1
+pdfplumber==0.9.0
 
 # Logging
 python-json-logger==2.0.7 
