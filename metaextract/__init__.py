@@ -1,25 +1,14 @@
 """
-MetaExtract: Simplified Schema-Guided Extraction System
+MetaExtract - AI-powered data extraction from unstructured text.
 
-A focused AI system that converts unstructured text into structured JSON 
-following complex schemas with minimal constraints.
-
-Key Features:
-- Intelligent schema complexity analysis
-- Adaptive strategy selection (simple/chunked/hierarchical)
-- Real OpenAI GPT-4 integration
-- Large document handling (50-page docs to 10MB files)
-- Confidence scoring and validation
+A production-ready system for converting unstructured documents into structured JSON 
+following complex schemas.
 """
 
-__version__ = "0.2.0"
-__author__ = "Metaforms AI Assignment - Simplified"
+__version__ = "1.0.0"
+__author__ = "MetaExtract Team"
+__description__ = "AI-powered data extraction with comprehensive evaluation"
 
-from .simplified_extractor import SimplifiedMetaExtract, SchemaComplexity, ExtractionStrategy, ExtractionResult
+from .simplified_extractor import SimplifiedMetaExtract
 
-__all__ = [
-    "SimplifiedMetaExtract",
-    "SchemaComplexity", 
-    "ExtractionStrategy",
-    "ExtractionResult"
-] 
+__all__ = ["SimplifiedMetaExtract"] 

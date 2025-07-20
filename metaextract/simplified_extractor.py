@@ -1,11 +1,11 @@
 """
-Simplified MetaExtract Engine
+MetaExtract Engine
 
-A focused, working implementation that converts unstructured text to structured JSON
-following complex schemas. Addresses the assignment requirements:
-- P1: Handles 3-7 nesting levels, 50-150 objects, 1000+ literals/enums  
-- P2: Supports large documents (50 pages to 10MB)
-- P3: Adapts effort based on schema complexity
+Production implementation that converts unstructured text to structured JSON
+following complex schemas. Key capabilities:
+- Handles deep nesting (3-7+ levels), large schemas (50-150+ objects)
+- Supports large documents (50 pages to 10MB files)
+- Adapts processing effort based on schema complexity
 """
 
 import json
@@ -59,6 +59,7 @@ class ExtractionResult:
     success: bool
     extracted_data: Optional[Dict[str, Any]]
     confidence_score: float
+    field_confidences: Dict[str, float]  # Field path -> confidence score
     strategy_used: str
     processing_time: float
     token_usage: int
@@ -126,6 +127,7 @@ class SimplifiedMetaExtract:
                 success=validated_result is not None,
                 extracted_data=validated_result.get('data') if validated_result else None,
                 confidence_score=validated_result.get('confidence', 0.0) if validated_result else 0.0,
+                field_confidences=validated_result.get('field_confidences', {}) if validated_result else {},
                 strategy_used=selected_strategy.value,
                 processing_time=processing_time,
                 token_usage=validated_result.get('tokens', 0) if validated_result else 0,
@@ -140,6 +142,7 @@ class SimplifiedMetaExtract:
                 success=False,
                 extracted_data=None,
                 confidence_score=0.0,
+                field_confidences={},
                 strategy_used=strategy or "unknown",
                 processing_time=time.time() - start_time,
                 token_usage=0,
@@ -348,9 +351,9 @@ EXTRACTED DATA (JSON only):"""
     
     def _parse_llm_response(self, response, chunks: int) -> Dict[str, Any]:
         """Parse LLM response and extract structured data"""
+        content = response.choices[0].message.content.strip()
+        
         try:
-            content = response.choices[0].message.content.strip()
-            
             # Try to extract JSON from response
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
@@ -369,12 +372,55 @@ EXTRACTED DATA (JSON only):"""
             
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON from LLM response: {e}")
+            
+            # Try to extract partial data using more robust parsing
+            partial_data = self._extract_partial_data(content)
+            
             return {
-                'data': {},
-                'confidence': 0.1,
+                'data': partial_data,
+                'confidence': 0.3 if partial_data else 0.1,
                 'tokens': response.usage.total_tokens if hasattr(response, 'usage') else 0,
                 'chunks': chunks
             }
+    
+    def _extract_partial_data(self, content: str) -> Dict[str, Any]:
+        """Extract partial structured data from malformed response"""
+        try:
+            # Try to fix common JSON issues
+            content = content.replace('\\n', '\\\\n').replace('\n', ' ')
+            content = re.sub(r'\\(?!["\\/bfnrt])', r'\\\\', content)
+            
+            # Try parsing again after cleanup
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+                
+        except:
+            pass
+        
+        # Last resort: extract key-value pairs manually
+        partial = {}
+        
+        # Extract quoted strings that look like field values
+        patterns = [
+            r'"(\w+)"\s*:\s*"([^"]*)"',  # "field": "value"
+            r'"(\w+)"\s*:\s*(\d+)',      # "field": 123
+            r'"(\w+)"\s*:\s*(true|false|null)'  # "field": boolean/null
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, content)
+            for key, value in matches:
+                if value.isdigit():
+                    partial[key] = int(value)
+                elif value in ['true', 'false']:
+                    partial[key] = value == 'true'
+                elif value == 'null':
+                    partial[key] = None
+                else:
+                    partial[key] = value
+        
+        return partial
     
     def _validate_and_score(self, 
                            result: Dict[str, Any], 
