@@ -7,7 +7,7 @@ import time
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List
-from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks, status
+from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks, status, Form
 from fastapi.responses import JSONResponse
 import aiofiles
 import os
@@ -149,6 +149,92 @@ class MetaExtractService:
                 error_message=str(e)
             )
     
+    async def extract_from_file_content(self, file_content: str, schema: Dict[str, Any], filename: str) -> ExtractionResult:
+        """Extract structured data from file content using simplified extractor."""
+        if not self.extractor:
+            raise HTTPException(status_code=503, detail="Extractor not available. Please check system configuration.")
+        if not self.has_api_key:
+            raise HTTPException(status_code=503, detail="OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.")
+        
+        start_time = time.time()
+        
+        try:
+            # Use simplified extractor with auto strategy selection
+            result = await self.extractor.extract(
+                input_text=file_content,
+                schema=schema,
+                strategy=None  # Auto-select based on complexity
+            )
+            
+            # Convert result to API format
+            if result.success:
+                # Build field confidences
+                field_confidences = []
+                for field_path in result.low_confidence_fields:
+                    field_confidences.append(FieldConfidence(
+                        field_path=field_path,
+                        value=self._get_nested_value(result.extracted_data, field_path),
+                        confidence=0.5,
+                        validation_errors=[]
+                    ))
+                
+                # Create schema complexity info
+                extractor_complexity = self.extractor._analyze_schema_complexity(schema)
+                complexity_dict = {
+                    "complexity_level": "complex" if extractor_complexity.is_complex else "simple",
+                    "max_nesting_depth": extractor_complexity.nesting_depth,
+                    "total_objects": extractor_complexity.total_objects,
+                    "total_properties": extractor_complexity.total_properties,
+                    "complexity_score": extractor_complexity.complexity_score
+                }
+                
+                return ExtractionResult(
+                    success=True,
+                    extracted_data=result.extracted_data,
+                    strategy_used=result.strategy_used,
+                    schema_complexity=complexity_dict,
+                    processing_time=result.processing_time,
+                    chunk_count=result.chunks_processed,
+                    agent_count=1,
+                    overall_confidence=result.confidence_score,
+                    field_confidences=field_confidences,
+                    validation_errors=result.validation_errors,
+                    low_confidence_fields=result.low_confidence_fields,
+                    warnings=[]
+                )
+            else:
+                return ExtractionResult(
+                    success=False,
+                    extracted_data=None,
+                    strategy_used=result.strategy_used,
+                    schema_complexity={},
+                    processing_time=result.processing_time,
+                    chunk_count=0,
+                    agent_count=0,
+                    overall_confidence=0.0,
+                    field_confidences=[],
+                    validation_errors=[],
+                    low_confidence_fields=[],
+                    error_message=result.error_message
+                )
+            
+        except Exception as e:
+            processing_time = time.time() - start_time
+            return ExtractionResult(
+                success=False,
+                extracted_data=None,
+                strategy_used="auto",
+                schema_complexity={},
+                processing_time=processing_time,
+                chunk_count=0,
+                agent_count=0,
+                overall_confidence=0.0,
+                field_confidences=[],
+                validation_errors=[],
+                low_confidence_fields=[],
+                error_message=str(e)
+            )
+    
     def analyze_schema(self, schema: Dict[str, Any]) -> SchemaAnalysisResult:
         """Analyze schema complexity using simplified analyzer."""
         if not self.extractor:
@@ -236,55 +322,108 @@ async def extract_text(request: ExtractionRequest):
 @router.post("/extract/file", response_model=ExtractionResult)
 async def extract_file(
     file: UploadFile = File(...),
-    schema: str = None,
-    strategy: str = "auto",
-    chunk_size: int = 4000,
-    overlap_size: int = 200,
-    confidence_threshold: float = 0.7,
-    max_agents: int = 5
+    schema: str = Form(...),
+    strategy: str = Form("auto")
 ):
-    """Extract structured data from uploaded file."""
+    """
+    Extract structured data from uploaded file according to provided JSON schema.
+    
+    This endpoint accepts any text file and converts it to structured JSON following the provided schema.
+    Perfect for converting unstructured documents to machine-readable formats.
+    
+    Args:
+        file: Text file to extract from (.txt, .md, .csv, .json, etc.)
+        schema: JSON schema as string defining the target structure
+        strategy: Extraction strategy ('auto', 'simple', 'chunked', 'hierarchical')
+    
+    Returns:
+        Structured JSON data following the provided schema
+    """
     try:
-        # Validate file
-        if file.size > settings.max_file_size:
-            raise HTTPException(status_code=413, detail=f"File too large. Maximum size: {settings.max_file_size} bytes")
+        # Validate file size
+        if file.size and file.size > settings.max_file_size:
+            raise HTTPException(
+                status_code=413, 
+                detail=f"File too large. Maximum size: {settings.max_file_size} bytes ({settings.max_file_size // (1024*1024)} MB)"
+            )
         
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        if file_ext not in settings.allowed_file_types:
-            raise HTTPException(status_code=400, detail=f"File type {file_ext} not supported")
+        # Validate file type
+        file_ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+        allowed_types = ['.txt', '.md', '.csv', '.json', '.log', '.yaml', '.yml', '.xml', '.html']
         
-        # Parse schema
-        if not schema:
-            raise HTTPException(status_code=400, detail="Schema parameter is required")
+        if file_ext and file_ext not in allowed_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"File type {file_ext} not supported. Allowed types: {allowed_types}"
+            )
         
+        # Parse and validate schema
         try:
             schema_dict = json.loads(schema)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON schema")
+            if not isinstance(schema_dict, dict):
+                raise ValueError("Schema must be a JSON object")
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON schema: {str(e)}")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         
         # Read file content
-        content = await file.read()
-        text_content = content.decode('utf-8')
+        try:
+            content = await file.read()
+            # Try different encodings
+            for encoding in ['utf-8', 'utf-16', 'latin-1']:
+                try:
+                    text_content = content.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                raise HTTPException(status_code=400, detail="Could not decode file. Please ensure it's a text file.")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
         
-        # Create extraction request
-        request = ExtractionRequest(
-            input_text=text_content,
-            schema=schema_dict,
-            strategy=ExtractionStrategy(strategy),
-            chunk_size=chunk_size,
-            overlap_size=overlap_size,
-            confidence_threshold=confidence_threshold,
-            max_agents=max_agents
-        )
+        # Validate content is not empty
+        if not text_content.strip():
+            raise HTTPException(status_code=400, detail="File is empty or contains no readable text")
         
         # Perform extraction
-        result = await service.extract_from_text(request)
+        result = await service.extract_from_file_content(text_content, schema_dict, file.filename or "uploaded_file")
+        
         return result
         
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File extraction failed: {str(e)}")
+
+
+@router.post("/convert", response_model=ExtractionResult)
+async def convert_file_to_json(
+    file: UploadFile = File(..., description="Text file to convert"),
+    schema: str = Form(..., description="Target JSON schema as string")
+):
+    """
+    Convert any text file to structured JSON format.
+    
+    A simplified endpoint specifically for file-to-JSON conversion.
+    Automatically selects the best extraction strategy based on file size and schema complexity.
+    
+    Example usage:
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/convert" \
+         -F "file=@document.txt" \
+         -F "schema={\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}}}"
+    ```
+    
+    Args:
+        file: Text file to convert
+        schema: JSON schema defining the target structure
+        
+    Returns:
+        Structured JSON data
+    """
+    # This is essentially the same as extract_file but with a simpler interface
+    return await extract_file(file=file, schema=schema, strategy="auto")
 
 
 @router.post("/analyze-schema", response_model=SchemaAnalysisResult)

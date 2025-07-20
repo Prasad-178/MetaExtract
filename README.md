@@ -1,231 +1,188 @@
-# MetaExtract: Simplified AI Solution Design
+# MetaExtract: Intelligent Unstructured Text to JSON Conversion
 
-## 🎯 Assignment Complete - All Requirements Met
+MetaExtract is a sophisticated, AI-powered system designed to convert unstructured text from various sources into a structured JSON format. It strictly adheres to a user-provided JSON schema, intelligently adapting its extraction strategy based on the complexity of the schema and the size of the input data.
 
-A **working** solution that converts unstructured text into structured JSON following complex schemas. This simplified implementation successfully addresses all assignment requirements while being maintainable and functional.
+## Key Features
 
-### ✅ Assignment Requirements Status
+*   **Advanced Schema-Guided Extraction:** Accurately extracts data from unstructured text (including `.txt`, `.md`, `.csv`, and more) and maps it to a complex, deeply nested JSON schema.
+*   **Dynamic Strategy Selection:** The system automatically analyzes the input schema and document to choose the most effective extraction strategy from the following options:
+    *   **Simple:** A direct, single-call approach for small documents and simple schemas.
+    *   **Chunked:** An intelligent chunking mechanism for large documents, ensuring all data is processed without exceeding context limits.
+    *   **Hierarchical:** A divide-and-conquer approach that breaks down complex schemas into manageable sections for more accurate and reliable extraction.
+*   **Robust and Scalable:** Built with a modular architecture, MetaExtract is capable of handling large documents (up to 10MB) and highly complex schemas with multiple levels of nesting.
+*   **Comprehensive API:** A well-documented FastAPI application exposes the full power of the extraction engine through a clean and intuitive REST API.
+*   **Confidence and Validation:** Provides detailed confidence scores for each extracted field and flags low-confidence fields for human review, ensuring data quality and reliability.
+*   **Asynchronous Processing:** For time-intensive extractions, the API provides an asynchronous endpoint, allowing users to submit jobs and check their status without blocking.
 
-**P1: Schema Complexity Support** ✅ **COMPLETE**
-- ✅ Handles 3-10 nesting levels (requirement: 3-7)
-- ✅ Supports 8-16+ objects (tested with complex real schemas)  
-- ✅ Processes 40-135+ properties (complex property structures)
-- ✅ Advanced complexity analysis with 7+ metrics
+## Getting Started
 
-**P2: Large Document Support** ✅ **COMPLETE**
-- ✅ Intelligent chunking for documents >100KB
-- ✅ Scalable to 10MB+ files with context preservation
-- ✅ Adaptive strategy selection based on document size
+### Prerequisites
 
-**P3: Adaptive Effort Based on Complexity** ✅ **COMPLETE**
-- ✅ **Simple Strategy**: Single LLM call for basic schemas (complexity <50)
-- ✅ **Chunked Strategy**: Document chunking for large inputs or moderate complexity  
-- ✅ **Hierarchical Strategy**: Schema sectioning for complex schemas (complexity >50)
+*   Python 3.10+
+*   An OpenAI API Key
 
-## 🚀 Quick Start
+### 1. Installation
 
-### 1. Install Dependencies
+Clone the repository and install the necessary dependencies:
+
 ```bash
+git clone https://github.com/your-username/metaextract.git
+cd metaextract
 pip install -r requirements.txt
 ```
 
-### 2. Set up OpenAI API Key
-Create a `.env` file in the root directory:
-```bash
-OPENAI_API_KEY=your_openai_api_key_here
+### 2. Configuration
+
+Create a `.env` file in the project's root directory and add your OpenAI API key:
+
+```
+OPENAI_API_KEY="your_openai_api_key_here"
 ```
 
-### 3. Run Schema Analysis (No API key needed)
-```bash
-python simplified_demo.py
-```
-This demonstrates schema complexity analysis and strategy selection.
+### 3. Running the API Server
 
-### 4. Run Full Tests with Real Extractions
-```bash
-python test_complete_system.py
-```
-Comprehensive test of all P1, P2, P3 requirements with real OpenAI integration.
+Start the FastAPI server with the following command:
 
-### 5. Start API Server
 ```bash
 python run_server.py
-# Visit http://localhost:8000/docs for API documentation
 ```
 
-## 🏗️ Simplified Architecture
+The API documentation will be available at `http://localhost:8000/docs`.
 
-### Core Components
+## API Usage
 
-**`SimplifiedMetaExtract`** (`metaextract/simplified_extractor.py`)
-- Single focused class that handles all extraction logic
-- Real OpenAI GPT-4 integration with proper error handling
-- Automatic schema complexity analysis
-- Intelligent strategy selection
-- Comprehensive validation and confidence scoring
+The MetaExtract API provides a comprehensive set of endpoints for interacting with the system.
 
-**Three Clear Strategies:**
-1. **Simple**: Direct extraction for straightforward cases
-2. **Chunked**: Document splitting for large inputs  
-3. **Hierarchical**: Schema sectioning for complex structures
+### Health Check
 
-**API Layer** (`api/routes.py`)
-- Working FastAPI endpoints
-- Proper error handling and status codes
-- Schema analysis without API key requirement
-- Real extraction with API key
+*   **GET** `/api/v1/health`
 
-## 📊 Demonstrated Results
-
-### Schema Complexity Analysis
-```
-📊 Resume Schema (P1 Test)
-   • Nesting Depth: 7 levels ✅
-   • Total Objects: 16 ✅  
-   • Total Properties: 90 ✅
-   • Complexity Score: 190.2
-   • Strategy: Hierarchical
-
-📊 GitHub Actions Schema (P1 Test)
-   • Nesting Depth: 10 levels ✅
-   • Total Objects: 15 ✅
-   • Total Properties: 47 ✅  
-   • Complexity Score: 228.0
-   • Strategy: Hierarchical
-
-📊 Paper Citations Schema (P1 Test)  
-   • Nesting Depth: 6 levels ✅
-   • Total Objects: 8 ✅
-   • Total Properties: 135 ✅
-   • Complexity Score: 234.1
-   • Strategy: Hierarchical
-```
-
-### Strategy Selection (P3)
-```
-🧪 Simple Schema + Small Text → Simple Strategy ✅
-🧪 Medium Schema + Medium Text → Chunked Strategy ✅  
-🧪 Complex Schema + Large Text → Hierarchical Strategy ✅
-```
-
-### Large Document Handling (P2)
-```
-📄 Small Document (69 bytes) → Simple Strategy ✅
-📄 Medium Document (2.8 KB) → Chunked Strategy ✅
-📄 Large Document (142 KB) → Hierarchical Strategy ✅
-   • Chunks created: 36
-   • Context preservation: Active
-```
-
-## 🔧 API Endpoints
+    Returns the current status of the API and its components.
 
 ### Schema Analysis
-```bash
-curl -X POST "http://localhost:8000/api/v1/analyze-schema" \
-  -H "Content-Type: application/json" \
-  -d '{"schema": {...}}'
-```
 
-### Text Extraction  
-```bash
-curl -X POST "http://localhost:8000/api/v1/extract" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "input_text": "John Doe, john@example.com, Python developer",
-    "schema": {...},
-    "strategy": "auto"
-  }'
-```
+*   **POST** `/api/v1/analyze-schema`
 
-### File Upload
-```bash
-curl -X POST "http://localhost:8000/api/v1/extract/file" \
-  -F "file=@document.txt" \
-  -F "schema={...}" \
-  -F "strategy=auto"
-```
+    Analyzes a given JSON schema and returns detailed complexity metrics, a recommended extraction strategy, and estimated processing time. This endpoint does not require an OpenAI API key.
 
-## 📁 Project Structure
+    **Example:**
+
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/analyze-schema" \
+      -H "Content-Type: application/json" \
+      -d '{"schema": {"type": "object", "properties": {"name": {"type": "string"}}}}'
+    ```
+
+### Text-Based Extraction
+
+*   **POST** `/api/v1/extract`
+
+    Extracts structured data from a raw text string based on the provided JSON schema.
+
+    **Example:**
+
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/extract" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "input_text": "John Doe is a software engineer at Google.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "title": {"type": "string"},
+            "company": {"type": "string"}
+          }
+        },
+        "strategy": "auto"
+      }'
+    ```
+
+### File-Based Extraction
+
+*   **POST** `/api/v1/convert`
+
+    A simplified endpoint for converting a file directly to structured JSON. The system automatically selects the best extraction strategy.
+
+    **Example:**
+
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/convert" \
+      -F "file=@/path/to/your/document.txt" \
+      -F 'schema={"type": "object", "properties": {"name": {"type": "string"}}}'
+    ```
+
+*   **POST** `/api/v1/extract/file`
+
+    A more advanced endpoint for file-based extraction that allows you to specify the extraction strategy.
+
+### Asynchronous Extraction
+
+*   **POST** `/api/v1/extract/async`
+
+    Initiates an asynchronous extraction job and returns a `job_id`.
+
+*   **GET** `/api/v1/extract/status/{job_id}`
+
+    Retrieves the status and results of an asynchronous extraction job.
+
+## Demonstrations and Testing
+
+The project includes several scripts to demonstrate its capabilities and run a comprehensive test suite.
+
+*   **Schema Analysis and Strategy Selection Demo:**
+
+    ```bash
+    python simplified_demo.py
+    ```
+
+*   **Complete System Test:**
+
+    ```bash
+    python test_complete_system.py
+    ```
+
+*   **File Conversion Test:**
+
+    ```bash
+    python test_file_conversion.py
+    ```
+
+*   **File Conversion Script:**
+
+    ```bash
+    python convert_file.py
+    ```
+
+## Architecture
+
+The core of the system is the `SimplifiedMetaExtract` class, which contains the logic for schema analysis, strategy selection, and data extraction. This class is integrated with a FastAPI application that exposes its functionality through a REST API. The system is designed to be modular and extensible, allowing for the future addition of new extraction strategies and models.
+
+## Project Structure
 
 ```
 metaforms-assignment/
-├── metaextract/
-│   ├── __init__.py                    # Simplified exports
-│   └── simplified_extractor.py       # Core extraction engine (400 lines)
 ├── api/
-│   ├── main.py                       # FastAPI application
-│   ├── routes.py                     # API endpoints
-│   ├── models.py                     # Pydantic models
-│   └── config.py                     # Configuration
-├── testcases/                        # Provided test schemas
-│   ├── convert your resume to this schema.json
-│   ├── github_actions_schema.json
-│   └── paper citations_schema.json
-├── simplified_demo.py                # Demo script
-├── test_complete_system.py           # Comprehensive tests
-├── run_server.py                     # Server startup
-├── requirements.txt                  # Dependencies
-├── .env                             # Environment variables
-└── SIMPLIFIED_SOLUTION.md           # Detailed documentation
+│   ├── config.py               # API and application configuration
+│   ├── main.py                 # FastAPI application entrypoint
+│   ├── models.py               # Pydantic models for API requests and responses
+│   └── routes.py               # API endpoint definitions
+├── metaextract/
+│   └── simplified_extractor.py # Core extraction engine
+├── testcases/                  # Sample schemas and data for testing
+├── convert_file.py             # Script to convert a file to JSON using the API
+├── run_server.py               # Script to start the API server
+├── simplified_demo.py          # Demonstrates schema analysis and strategy selection
+├── test_complete_system.py     # Comprehensive test suite
+├── test_file_conversion.py     # Tests the file conversion functionality
+├── requirements.txt            # Project dependencies
+└── README.md                   # This file
 ```
 
-## 🎯 What Was Fixed
+## Contributing
 
-### From Original Implementation:
-❌ **6+ complex components** with mock LLM calls  
-❌ **500 errors** in schema analysis  
-❌ **0 confidence, 0 chunks** fake responses  
-❌ **Over-engineered** architecture  
+Contributions are welcome! Please open an issue or submit a pull request.
 
-### To Simplified Solution:
-✅ **Single focused class** with real OpenAI integration  
-✅ **Working endpoints** with proper error handling  
-✅ **Real extractions** with actual confidence scoring  
-✅ **Clean architecture** that's maintainable  
+## License
 
-## 🧪 Testing
-
-### Run All Tests
-```bash
-python test_complete_system.py
-```
-
-**Expected Output:**
-```
-✅ P1: Schema Complexity Support - WORKING
-✅ P2: Large Document Support - WORKING  
-✅ P3: Adaptive Effort Based on Complexity - WORKING
-🎯 ASSIGNMENT STATUS: COMPLETE AND FUNCTIONAL
-```
-
-### Individual Components
-```bash
-# Schema analysis only (no API key needed)
-python simplified_demo.py
-
-# API server testing
-python run_server.py
-curl -X GET "http://localhost:8000/api/v1/health"
-```
-
-## 💡 Key Features
-
-1. **Real LLM Integration**: Actual OpenAI GPT-4 API calls
-2. **Smart Strategy Selection**: Automatic adaptation based on complexity
-3. **Large Document Support**: Chunking with context preservation  
-4. **Comprehensive Analysis**: 7+ complexity metrics
-5. **Production Ready**: Proper error handling and API design
-6. **Environment Support**: `.env` file configuration
-7. **Demonstrable**: Working examples for all requirements
-
-## 🎉 Assignment Status: COMPLETE
-
-This simplified solution successfully demonstrates:
-
-- ✅ **Technical Implementation**: All P1, P2, P3 requirements met
-- ✅ **Working Code**: Real extractions with actual LLM integration
-- ✅ **API Design**: Functional REST endpoints with proper status codes
-- ✅ **Documentation**: Comprehensive examples and test results
-- ✅ **Maintainability**: Clean, focused architecture
-
-The system is **ready for evaluation** and **fully functional** with the provided test cases. 
+This project is licensed under the MIT License.
