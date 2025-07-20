@@ -8,13 +8,18 @@ from enum import Enum
 
 class ExtractionStrategy(str, Enum):
     """Available extraction strategies."""
-    SIMPLE_PROMPT = "simple_prompt"
-    ENHANCED_PROMPT = "enhanced_prompt"
-    HIERARCHICAL_CHUNKING = "hierarchical_chunking"
-    MULTI_AGENT_PARALLEL = "multi_agent_parallel"
-    MULTI_AGENT_SEQUENTIAL = "multi_agent_sequential"
-    HYBRID = "hybrid"
+    SIMPLE = "simple"
+    CHUNKED = "chunked"
+    HIERARCHICAL = "hierarchical"
     AUTO = "auto"  # Let system decide
+    
+    # Legacy support for old strategy names
+    SIMPLE_PROMPT = "simple"
+    ENHANCED_PROMPT = "simple"
+    HIERARCHICAL_CHUNKING = "hierarchical"
+    MULTI_AGENT_PARALLEL = "chunked"
+    MULTI_AGENT_SEQUENTIAL = "hierarchical"
+    HYBRID = "hierarchical"
 
 
 class InputType(str, Enum):
