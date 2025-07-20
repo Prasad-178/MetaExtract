@@ -175,9 +175,26 @@ MetaExtract/
 └── 📖 README.md             # This documentation
 ```
 
-## 🌐 **Deployment Ready**
+## 🌐 **Live Deployment**
 
-### Deploy to Railway
+### 🚀 **Production Deployment Available**
+**Live API**: https://web-production-8fc94.up.railway.app
+
+**Test the live system:**
+```bash
+# Health check
+curl https://web-production-8fc94.up.railway.app/api/v1/health
+
+# Upload and test files
+curl -X POST "https://web-production-8fc94.up.railway.app/api/v1/test" \
+  -F "content_file=@your_document.pdf" \
+  -F "schema_file=@your_schema.json"
+
+# API documentation
+# Visit: https://web-production-8fc94.up.railway.app/docs
+```
+
+### Deploy Your Own to Railway
 ```bash
 # Install Railway CLI
 npm install -g @railway/cli
@@ -193,7 +210,7 @@ railway up
 
 ### Test Deployed API
 ```bash
-export API_URL="https://your-app.up.railway.app"
+export API_URL="https://web-production-8fc94.up.railway.app"
 
 # Health check
 curl $API_URL/api/v1/health

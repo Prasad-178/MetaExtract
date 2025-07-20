@@ -22,13 +22,25 @@ except ImportError:
 
 router = APIRouter()
 
-# Initialize extractor
-try:
-    extractor = SimplifiedMetaExtract()
-    has_openai_key = True
-except:
-    extractor = None
-    has_openai_key = False
+# Initialize extractor with lazy loading for Railway compatibility
+def get_extractor():
+    """Get or create extractor instance with proper error handling"""
+    try:
+        # Check for OpenAI API key in multiple possible env var names
+        api_key = (os.getenv("OPENAI_API_KEY") or 
+                  os.getenv("OPENAI_API_KEY_SECRET") or 
+                  os.getenv("OPENAI_KEY"))
+        
+        if not api_key:
+            return None, False
+            
+        return SimplifiedMetaExtract(api_key), True
+    except Exception as e:
+        print(f"Failed to initialize extractor: {e}")
+        return None, False
+
+# Initialize on startup but don't fail if not available
+extractor, has_openai_key = get_extractor()
 
 
 def extract_text_from_file(file_content: bytes, filename: str) -> str:
@@ -125,8 +137,12 @@ def extract_text_from_csv(file_content: bytes) -> str:
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Check if the API is running."""
+    # Re-check OpenAI key availability dynamically
+    current_extractor, current_has_key = get_extractor()
+    status = "healthy" if current_has_key else "no_openai_key"
+    
     return HealthResponse(
-        status="healthy" if has_openai_key else "no_openai_key",
+        status=status,
         version=settings.api_version
     )
 
@@ -134,11 +150,12 @@ async def health_check():
 @router.post("/extract", response_model=ExtractionResult)
 async def extract_from_text(request: ExtractionRequest):
     """Extract structured data from text."""
-    if not has_openai_key:
+    current_extractor, current_has_key = get_extractor()
+    if not current_has_key:
         raise HTTPException(status_code=400, detail="OpenAI API key not configured")
     
     try:
-        result = await extractor.extract(
+        result = await current_extractor.extract(
             input_text=request.text,
             schema=request.schema,
             strategy=None if request.strategy == "auto" else request.strategy
@@ -171,7 +188,8 @@ async def extract_from_file(
     schema: str = Form(...)
 ):
     """Extract structured data from uploaded file."""
-    if not has_openai_key:
+    current_extractor, current_has_key = get_extractor()
+    if not current_has_key:
         raise HTTPException(status_code=400, detail="OpenAI API key not configured")
     
     # Read file content and extract text based on file type
@@ -191,7 +209,7 @@ async def extract_from_file(
     
     # Extract data
     try:
-        result = await extractor.extract(
+        result = await current_extractor.extract(
             input_text=text,
             schema=schema_dict,
             strategy=None
@@ -225,7 +243,8 @@ async def test_extraction(
     schema_file: UploadFile = File(...)
 ):
     """Test endpoint: upload content file and schema file, get extracted JSON."""
-    if not has_openai_key:
+    current_extractor, current_has_key = get_extractor()
+    if not current_has_key:
         raise HTTPException(status_code=400, detail="OpenAI API key not configured")
     
     try:
@@ -238,7 +257,7 @@ async def test_extraction(
         schema = json.loads(schema_content.decode('utf-8'))
         
         # Extract data
-        result = await extractor.extract(
+        result = await current_extractor.extract(
             input_text=text,
             schema=schema,
             strategy=None

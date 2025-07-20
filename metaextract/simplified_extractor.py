@@ -78,9 +78,15 @@ class SimplifiedMetaExtract:
         if not self.api_key:
             raise ValueError("OpenAI API key required. Set OPENAI_API_KEY environment variable or pass api_key parameter.")
         
-        self.client = AsyncOpenAI(api_key=self.api_key)
+        self.client = None  # Lazy initialization
         self.max_tokens_per_request = 16000  # GPT-4 context window management
         self.chunk_overlap = 200
+    
+    def _get_client(self):
+        """Get or create OpenAI client (lazy initialization)"""
+        if self.client is None:
+            self.client = AsyncOpenAI(api_key=self.api_key)
+        return self.client
     
     async def extract(self, 
                      input_text: str, 
@@ -211,7 +217,7 @@ class SimplifiedMetaExtract:
         
         prompt = self._build_extraction_prompt(input_text, schema, "simple")
         
-        response = await self.client.chat.completions.create(
+        response = await self._get_client().chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[
                 {"role": "system", "content": "You are an expert data extraction specialist. Extract structured data from text according to JSON schemas with perfect accuracy."},
@@ -240,7 +246,7 @@ class SimplifiedMetaExtract:
             
             prompt = self._build_extraction_prompt(chunk, schema, "chunked", chunk_info=f"chunk {i+1}/{len(chunks)}")
             
-            response = await self.client.chat.completions.create(
+            response = await self._get_client().chat.completions.create(
                 model="gpt-4-turbo-preview",
                 messages=[
                     {"role": "system", "content": "You are an expert data extraction specialist. Extract structured data from this text chunk according to the JSON schema. Focus on completeness and accuracy."},
@@ -284,7 +290,7 @@ class SimplifiedMetaExtract:
                 section_info=f"Focus on extracting data for: {section_name}"
             )
             
-            response = await self.client.chat.completions.create(
+            response = await self._get_client().chat.completions.create(
                 model="gpt-4-turbo-preview",
                 messages=[
                     {"role": "system", "content": f"You are an expert data extraction specialist. Focus on extracting data for the '{section_name}' section of the schema with high accuracy."},
