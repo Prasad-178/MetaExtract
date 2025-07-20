@@ -28,15 +28,24 @@ def get_extractor():
     try:
         # Check for OpenAI API key in multiple possible env var names
         api_key = (os.getenv("OPENAI_API_KEY") or 
-                  os.getenv("OPENAI_API_KEY_SECRET") or 
-                  os.getenv("OPENAI_KEY"))
+                  os.getenv("OPENAI_API_KEY_SECRET"))
         
         if not api_key:
+            print("No OpenAI API key found in environment variables")
             return None, False
             
-        return SimplifiedMetaExtract(api_key), True
+        print(f"Found OpenAI API key: {api_key[:8]}...")  # Log first 8 chars for debugging
+        extractor = SimplifiedMetaExtract(api_key)
+        print("Successfully initialized MetaExtract")
+        return extractor, True
+        
+    except ValueError as e:
+        print(f"ValueError initializing extractor: {e}")
+        return None, False
     except Exception as e:
-        print(f"Failed to initialize extractor: {e}")
+        print(f"Unexpected error initializing extractor: {e}")
+        import traceback
+        traceback.print_exc()
         return None, False
 
 # Initialize on startup but don't fail if not available
@@ -157,7 +166,7 @@ async def extract_from_text(request: ExtractionRequest):
     try:
         result = await current_extractor.extract(
             input_text=request.text,
-            schema=request.schema,
+            schema=request.json_schema,
             strategy=None if request.strategy == "auto" else request.strategy
         )
         

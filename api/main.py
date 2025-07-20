@@ -3,6 +3,7 @@ MetaExtract API - Main application.
 """
 import os
 import sys
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,11 +13,22 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from .config import settings
 from .routes import router
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan"""
+    # Startup
+    yield
+    # Shutdown - cleanup any resources
+    pass
+
+
 # Create FastAPI app
 app = FastAPI(
     title=settings.api_title,
     description=settings.api_description,
-    version=settings.api_version
+    version=settings.api_version,
+    lifespan=lifespan
 )
 
 # Add CORS middleware

@@ -82,10 +82,40 @@ class SimplifiedMetaExtract:
         self.max_tokens_per_request = 16000  # GPT-4 context window management
         self.chunk_overlap = 200
     
+    async def close(self):
+        """Clean up resources"""
+        if self.client:
+            try:
+                await self.client.close()
+            except Exception as e:
+                logger.warning(f"Error closing OpenAI client: {e}")
+            finally:
+                self.client = None
+    
     def _get_client(self):
         """Get or create OpenAI client (lazy initialization)"""
         if self.client is None:
-            self.client = AsyncOpenAI(api_key=self.api_key)
+            try:
+                # Create client with basic configuration only to avoid version conflicts
+                client_kwargs = {
+                    "api_key": self.api_key,
+                }
+                
+                # Add optional parameters only if supported
+                try:
+                    self.client = AsyncOpenAI(**client_kwargs)
+                except TypeError as te:
+                    # If basic creation fails, try with even more minimal config
+                    logger.warning(f"Basic client creation failed: {te}, trying minimal config")
+                    self.client = AsyncOpenAI(api_key=self.api_key)
+                    
+                logger.info("OpenAI client created successfully")
+                
+            except Exception as e:
+                logger.error(f"Failed to create OpenAI client: {e}")
+                import traceback
+                traceback.print_exc()
+                raise ValueError(f"Failed to initialize OpenAI client: {e}")
         return self.client
     
     async def extract(self, 

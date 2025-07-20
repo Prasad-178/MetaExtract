@@ -2,14 +2,17 @@
 Request and response models for MetaExtract API.
 """
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ExtractionRequest(BaseModel):
     """Request for text extraction."""
     text: str
-    schema: Dict[str, Any]
+    json_schema: Dict[str, Any] = Field(..., alias="schema")
     strategy: Optional[str] = "auto"
+    
+    class Config:
+        populate_by_name = True
 
 
 class ExtractionResult(BaseModel):
