@@ -10,6 +10,13 @@ jsonschema>=4.20.0
 pydantic>=2.10.2
 pydantic-settings>=2.1.0
 
+# Agentic AI Framework
+crewai>=0.100.0
+crewai-tools>=0.17.0
+langchain>=0.3.13
+langchain-openai>=0.2.14
+chromadb>=0.6.0
+
 # Utilities
 python-dotenv>=1.0.0
 requests>=2.25.0 

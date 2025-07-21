@@ -22,6 +22,7 @@ import openai
 import os
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
+from jsonschema import validate, ValidationError
 
 # Load environment variables from .env file
 load_dotenv()
@@ -633,43 +634,18 @@ EXTRACTED DATA (JSON only):"""
         return merged
     
     def _validate_json_schema(self, data: Dict[str, Any], schema: Dict[str, Any]) -> List[str]:
-        """Basic JSON schema validation"""
+        """Validate data against the given JSON schema using the jsonschema library."""
         errors = []
-        
-        required_fields = schema.get('required', [])
-        properties = schema.get('properties', {})
-        
-        # Check required fields
-        for field in required_fields:
-            if field not in data:
-                errors.append(f"Missing required field: {field}")
-        
-        # Check data types
-        for field, value in data.items():
-            if field in properties:
-                expected_type = properties[field].get('type')
-                if expected_type and not self._check_type_match(value, expected_type):
-                    errors.append(f"Type mismatch for {field}: expected {expected_type}")
-        
+        try:
+            validate(instance=data, schema=schema)
+        except ValidationError as e:
+            # Capture user-friendly error messages
+            errors.append(f"Validation Error at '{'.'.join(map(str, e.path))}': {e.message}")
+        except Exception as e:
+            # Catch other potential errors during validation
+            errors.append(f"An unexpected error occurred during schema validation: {str(e)}")
+            
         return errors
-    
-    def _check_type_match(self, value: Any, expected_type: str) -> bool:
-        """Check if value matches expected type"""
-        type_map = {
-            'string': str,
-            'number': (int, float),
-            'integer': int,
-            'boolean': bool,
-            'array': list,
-            'object': dict,
-            'null': type(None)
-        }
-        
-        expected_python_type = type_map.get(expected_type)
-        if expected_python_type is None:
-            return True  # Unknown type, assume valid
-        
-        return isinstance(value, expected_python_type)
     
     def _calculate_field_confidences(self, 
                                    data: Dict[str, Any], 
