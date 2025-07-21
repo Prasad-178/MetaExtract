@@ -532,15 +532,15 @@ async def test_agentic_extraction(
         schema_content = await schema_file.read()
         schema = json.loads(schema_content.decode('utf-8'))
         
-        # Create simplified agentic request
+        # Create enhanced agentic request
         agentic_request = AgenticExtractionRequest(
             text=text,
             json_schema=schema,
-            strategy="simplified_fast",
+            strategy="enhanced_agentic",
             enable_rag=False,
             max_agents=3,
             confidence_threshold=0.7,
-            enable_cross_validation=False
+            enable_cross_validation=True
         )
         
         # Extract data
@@ -560,8 +560,22 @@ async def test_agentic_extraction(
             "processing_time": result.total_processing_time,
             "total_tokens_used": result.total_tokens_used,
             "validation_errors": result.validation_errors,
+            "consensus_fields": result.consensus_fields,
+            "low_confidence_fields": result.low_confidence_fields,
+            "performance_metrics": result.performance_metrics,
             "content_filename": content_file.filename,
-            "schema_filename": schema_file.filename
+            "schema_filename": schema_file.filename,
+            "agent_details": [
+                {
+                    "agent_id": agent.agent_id,
+                    "role": agent.agent_role.value,
+                    "confidence": agent.confidence,
+                    "reasoning": agent.reasoning,
+                    "processing_time": agent.processing_time,
+                    "tokens_used": agent.tokens_used
+                }
+                for agent in result.agent_results
+            ]
         }
         
     except json.JSONDecodeError:

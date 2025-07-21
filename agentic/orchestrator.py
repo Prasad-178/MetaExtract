@@ -38,58 +38,109 @@ class AgenticMetaExtract:
     
     async def extract(self, request: AgenticExtractionRequest) -> AgenticExtractionResult:
         """
-        Main agentic extraction method - simplified for speed and efficiency
+        Enhanced agentic extraction method with traditional approach components
         """
         start_time = time.time()
         
         try:
-            # Create simplified crew
+            # Analyze schema complexity using traditional approach methods
+            complexity = self.traditional_extractor._analyze_schema_complexity(request.json_schema)
+            logger.info(f"Schema complexity: {complexity.complexity_score:.1f} (depth: {complexity.nesting_depth}, objects: {complexity.total_objects})")
+            
+            # Create enhanced crew with 3 agents
             crew = self.crew_factory.create_fast_extraction_crew(request.text, request.json_schema)
             
             # Execute crew
-            logger.info(f"Starting agentic extraction with {len(crew.agents)} agents")
+            logger.info(f"Starting enhanced agentic extraction with {len(crew.agents)} agents")
             crew_result = await self._execute_crew_async(crew)
             
             # Parse and extract JSON from crew result
-            extracted_data, confidence = self._parse_crew_result_to_json(crew_result)
+            extracted_data, base_confidence = self._parse_crew_result_to_json(crew_result)
             
-            # Validate using traditional extractor's validation logic
+            # Enhanced validation and scoring using traditional approach methods
             validation_errors = []
+            field_confidences = {}
+            low_confidence_fields = []
+            
             if extracted_data:
+                # Schema validation using traditional approach
                 validation_errors = self.traditional_extractor._validate_json_schema(
                     extracted_data, request.json_schema
                 )
-            
-            # Calculate confidence (adjust based on validation)
-            if validation_errors:
-                confidence = max(0.3, confidence - len(validation_errors) * 0.1)
+                
+                # Field confidence calculation using traditional approach
+                field_confidences = self.traditional_extractor._calculate_field_confidences(
+                    extracted_data, request.json_schema, request.text
+                )
+                
+                # Identify low confidence fields
+                low_confidence_fields = [
+                    field for field, confidence in field_confidences.items() 
+                    if confidence < request.confidence_threshold
+                ]
+                
+                # Calculate enhanced overall confidence
+                enhanced_confidence = self._calculate_enhanced_confidence(
+                    base_confidence, validation_errors, field_confidences, complexity
+                )
+            else:
+                enhanced_confidence = 0.0
             
             processing_time = time.time() - start_time
             
-            # Create agent results for tracking
+            # Create detailed agent results for tracking
             agent_results = [
                 AgentResult(
-                    agent_id="simplified_crew",
-                    agent_role=AgentRole.AGGREGATOR,
-                    extracted_data=extracted_data or {},
-                    confidence=confidence,
-                    reasoning="Simplified agentic extraction using 3-agent crew",
-                    processing_time=processing_time,
-                    tokens_used=self._estimate_tokens_used(request.text, request.json_schema),
+                    agent_id="schema_analyzer",
+                    agent_role=AgentRole.SCHEMA_ANALYZER,
+                    extracted_data={},
+                    confidence=0.9,  # Schema analysis is typically reliable
+                    reasoning=f"Analyzed schema complexity: {complexity.complexity_score:.1f}, depth: {complexity.nesting_depth}",
+                    processing_time=processing_time * 0.2,  # Estimated proportion
+                    tokens_used=self._estimate_tokens_used(json.dumps(request.json_schema), {}),
                     field_confidences={}
+                ),
+                AgentResult(
+                    agent_id="data_extractor",
+                    agent_role=AgentRole.EXTRACTION_SPECIALIST,
+                    extracted_data=extracted_data or {},
+                    confidence=base_confidence,
+                    reasoning="Extracted structured data from input text using schema guidance",
+                    processing_time=processing_time * 0.6,  # Main extraction work
+                    tokens_used=self._estimate_tokens_used(request.text, request.json_schema),
+                    field_confidences=field_confidences
+                ),
+                AgentResult(
+                    agent_id="qa_validator",
+                    agent_role=AgentRole.QUALITY_ASSURANCE,
+                    extracted_data=extracted_data or {},
+                    confidence=enhanced_confidence,
+                    reasoning=f"Validated data: {len(validation_errors)} errors, {len(low_confidence_fields)} low-confidence fields",
+                    processing_time=processing_time * 0.2,  # Validation work
+                    tokens_used=500,  # Estimated for validation
+                    field_confidences=field_confidences
                 )
             ]
             
             result = AgenticExtractionResult(
                 success=extracted_data is not None,
                 final_data=extracted_data,
-                overall_confidence=confidence,
+                overall_confidence=enhanced_confidence,
                 agent_results=agent_results,
-                strategy_used="simplified_fast",
+                strategy_used="enhanced_agentic",
                 total_processing_time=processing_time,
-                total_tokens_used=agent_results[0].tokens_used,
-                agents_used=3,  # Always 3 agents in simplified approach
-                validation_errors=validation_errors
+                total_tokens_used=sum(ar.tokens_used for ar in agent_results),
+                agents_used=3,  # Schema analyzer, extractor, QA
+                validation_errors=validation_errors,
+                consensus_fields=self._identify_consensus_fields(field_confidences),
+                conflicting_fields={},  # No conflicts in sequential approach
+                low_confidence_fields=low_confidence_fields,
+                performance_metrics={
+                    "schema_complexity": complexity.complexity_score,
+                    "validation_score": 1.0 - (len(validation_errors) * 0.1),
+                    "field_coverage": len(field_confidences) / max(1, complexity.total_properties),
+                    "processing_efficiency": min(1.0, 30.0 / processing_time)  # Target 30s or less
+                }
             )
             
             # Track performance
@@ -98,7 +149,7 @@ class AgenticMetaExtract:
             return result
             
         except Exception as e:
-            logger.error(f"Agentic extraction failed: {e}")
+            logger.error(f"Enhanced agentic extraction failed: {e}")
             
             # Fallback to traditional approach
             logger.info("Falling back to traditional extraction")
@@ -238,6 +289,44 @@ class AgenticMetaExtract:
         
         return json_str
     
+    def _calculate_enhanced_confidence(self, 
+                                    base_confidence: float, 
+                                    validation_errors: List[str], 
+                                    field_confidences: Dict[str, float],
+                                    complexity) -> float:
+        """
+        Calculate enhanced confidence score combining multiple factors
+        """
+        # Start with base confidence from agent
+        confidence = base_confidence
+        
+        # Adjust based on validation errors
+        if validation_errors:
+            validation_penalty = min(0.3, len(validation_errors) * 0.1)
+            confidence = max(0.3, confidence - validation_penalty)
+        
+        # Boost confidence based on field confidence scores
+        if field_confidences:
+            avg_field_confidence = sum(field_confidences.values()) / len(field_confidences)
+            # Weighted average: 70% base confidence, 30% field confidence
+            confidence = (confidence * 0.7) + (avg_field_confidence * 0.3)
+        
+        # Small boost for completing complex schemas successfully
+        if not validation_errors and complexity.is_complex:
+            confidence = min(1.0, confidence + 0.05)
+        
+        return max(0.0, min(1.0, confidence))
+    
+    def _identify_consensus_fields(self, field_confidences: Dict[str, float]) -> Dict[str, Any]:
+        """
+        Identify fields with high confidence as consensus fields
+        """
+        consensus = {}
+        for field, confidence in field_confidences.items():
+            if confidence >= 0.8:  # High confidence threshold
+                consensus[field] = confidence
+        return consensus
+    
     def _estimate_tokens_used(self, text: str, schema: Dict[str, Any]) -> int:
         """
         Estimate tokens used in the extraction process
@@ -245,7 +334,7 @@ class AgenticMetaExtract:
         # Rough estimation: text + schema + model overhead
         text_tokens = len(text) // 4  # Rough approximation
         schema_tokens = len(json.dumps(schema)) // 4
-        overhead_tokens = 1000  # For prompts and responses
+        overhead_tokens = 800  # For prompts and responses (reduced from original)
         
         return text_tokens + schema_tokens + overhead_tokens
     

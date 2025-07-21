@@ -100,69 +100,103 @@ class SimplifiedCrewFactory:
         self.task_factory = SimplifiedTaskFactory()
     
     def create_fast_extraction_crew(self, text: str, schema: Dict[str, Any]) -> Crew:
-        """Create a fast, simplified extraction crew"""
+        """Create an enhanced but streamlined extraction crew with 3 specialized agents"""
         
-        # Create just 1 focused extraction agent to avoid confusion
+        # Create 3 focused agents
+        schema_agent = self.agent_factory.create_schema_analyzer_agent()
         extraction_agent = self.agent_factory.create_extraction_specialist_agent()
+        qa_agent = self.agent_factory.create_quality_assurance_agent()
         
-        # Create a single, very clear extraction task
+        # Task 1: Schema Analysis (provides extraction guidance)
+        schema_task = Task(
+            description=f"""
+            Analyze the JSON schema to provide extraction guidance for the team.
+            
+            SCHEMA TO ANALYZE:
+            {json.dumps(schema, indent=1)[:1500]}...
+            
+            Your analysis should focus on:
+            1. Key required fields that must be extracted
+            2. Optional fields that would be valuable 
+            3. Data types and structure requirements
+            4. Any complex nested objects or arrays
+            5. Validation rules or constraints
+            
+            Provide clear, actionable guidance for the extraction team:
+            - What are the most important fields to extract?
+            - What's the expected data structure?
+            - Any special requirements or constraints?
+            
+            Keep your analysis practical and focused on helping extract data effectively.
+            """,
+            agent=schema_agent,
+            expected_output="Clear extraction guidance based on schema analysis"
+        )
+        
+        # Task 2: Data Extraction (the core extraction work)
         extraction_task = Task(
             description=f"""
-            You are extracting data from a text document. Read the text below and extract the actual information mentioned in it.
+            Extract data from the text document using the schema guidance from the previous task.
 
             TEXT DOCUMENT:
             {text[:3000]}
 
-            Extract the following information from the text above (only what is actually mentioned):
+            EXTRACTION INSTRUCTIONS:
+            1. Use the schema analysis guidance from the previous task
+            2. Read the text carefully and extract actual values mentioned
+            3. Follow the expected data structure and types
+            4. Extract both required and optional fields when available
+            5. Maintain proper JSON structure and formatting
 
-            1. NAME: Look for phrases like "Action Name:" or "name:" - extract the actual name
-            2. DESCRIPTION: Look for "Purpose:" or "description" - extract the actual description  
-            3. AUTHOR: Look for "Author" mentions - extract the actual author name
-            4. INPUTS: Look for "Inputs Needed:" section - extract actual input names and descriptions
-            5. OUTPUTS: Look for "Outputs:" section - extract actual output names and descriptions
-            6. STEPS: Look for "steps" or execution workflow - extract actual steps mentioned
-            7. BRANDING: Look for color and icon mentions - extract actual values
+            Example extractions from this text:
+            - Look for "Action Name: MkDocs Publisher" → extract as "name": "MkDocs Publisher"
+            - Look for "Author should be listed as 'DevRel Team'" → extract as "author": "DevRel Team"
+            - Look for input descriptions → extract as properly structured input objects
+            - Look for step descriptions → extract as properly structured steps
 
-            Example of what to extract from text:
-            - Text: "Action Name: MkDocs Publisher" → Extract: "MkDocs Publisher"
-            - Text: "Author should be listed as 'DevRel Team'" → Extract: "DevRel Team"
-            - Text: "color blue and the book-open icon" → Extract: color: "blue", icon: "book-open"
+            Create a complete JSON object with all the information you can extract from the text.
+            Focus on accuracy and completeness while following the schema structure.
 
-            Return a JSON object with the actual values you found:
-            {{
-                "name": "actual name from text",
-                "description": "actual description from text",
-                "author": "actual author from text", 
-                "inputs": {{
-                    "actual-input-name": {{
-                        "description": "actual description from text",
-                        "required": true_or_false
-                    }}
-                }},
-                "outputs": {{
-                    "actual-output-name": {{
-                        "description": "actual description from text"
-                    }}
-                }},
-                "runs": {{
-                    "using": "composite",
-                    "steps": ["actual steps from text"]
-                }},
-                "branding": {{
-                    "color": "actual color from text",
-                    "icon": "actual icon from text"
-                }}
-            }}
-
-            CRITICAL: Extract REAL VALUES from the text, not schema examples.
+            Return ONLY the extracted JSON object.
             """,
             agent=extraction_agent,
-            expected_output="JSON object with actual data values extracted from the input text"
+            expected_output="Complete JSON object with data extracted from the input text",
+            context=[schema_task]  # Use schema analysis as context
+        )
+        
+        # Task 3: Quality Assurance (validation and confidence scoring)
+        qa_task = Task(
+            description=f"""
+            Review and validate the extracted data from the previous task.
+            
+            VALIDATION CHECKLIST:
+            1. Check if the JSON is valid and well-formed
+            2. Verify that required fields are present
+            3. Validate data types match schema expectations
+            4. Ensure extracted values make sense in context
+            5. Check for any obvious errors or inconsistencies
+            6. Assess completeness of the extraction
+            
+            SOURCE TEXT FOR VERIFICATION:
+            {text[:2000]}...
+            
+            Your job:
+            - Validate the extracted data against the schema
+            - Fix any obvious errors or formatting issues
+            - Ensure all values are properly extracted from the source text
+            - Return the final, validated JSON object
+            - If you find issues, correct them in the final output
+            
+            CRITICAL: Return ONLY the final, validated JSON object with any corrections applied.
+            """,
+            agent=qa_agent,
+            expected_output="Final validated and corrected JSON object",
+            context=[extraction_task]  # Use extraction result as context
         )
         
         return Crew(
-            agents=[extraction_agent],
-            tasks=[extraction_task],
+            agents=[schema_agent, extraction_agent, qa_agent],
+            tasks=[schema_task, extraction_task, qa_task],
             process=Process.sequential,
             verbose=False,
             full_output=True

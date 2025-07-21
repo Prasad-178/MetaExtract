@@ -57,11 +57,12 @@ class AgenticExtractionResult(BaseModel):
     agent_results: List[AgentResult]
     consensus_fields: Dict[str, Any] = Field(default_factory=dict)
     conflicting_fields: Dict[str, List[Any]] = Field(default_factory=dict)
+    low_confidence_fields: List[str] = Field(default_factory=list)
     strategy_used: str
     total_processing_time: float
     total_tokens_used: int
     agents_used: int
-    validation_errors: List[str] = []
+    validation_errors: List[str] = Field(default_factory=list)
     performance_metrics: Dict[str, Any] = Field(default_factory=dict)
 
 
