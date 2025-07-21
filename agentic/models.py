@@ -10,28 +10,22 @@ from enum import Enum
 class AgentRole(Enum):
     """Different agent roles in the extraction process"""
     SCHEMA_ANALYZER = "schema_analyzer"
-    TEXT_PROCESSOR = "text_processor" 
     EXTRACTION_SPECIALIST = "extraction_specialist"
     QUALITY_ASSURANCE = "quality_assurance"
-    AGGREGATOR = "aggregator"
-    KNOWLEDGE_RETRIEVER = "knowledge_retriever"
 
 
 class AgenticStrategy(Enum):
     """Agentic extraction strategies"""
-    PARALLEL = "parallel"           # Run multiple agents in parallel
-    HIERARCHICAL = "hierarchical"   # Sequential agent workflow
-    COLLABORATIVE = "collaborative" # Agents collaborate and review each other's work
-    ADAPTIVE = "adaptive"           # Dynamically choose strategy based on complexity
+    ENHANCED_AGENTIC = "enhanced_agentic"
 
 
 class AgenticExtractionRequest(BaseModel):
     """Request model for agentic extraction"""
     text: str = Field(..., description="Input text to extract from")
     json_schema: Dict[str, Any] = Field(..., description="JSON schema to extract to")
-    strategy: Optional[str] = Field("adaptive", description="Agentic strategy to use")
+    strategy: Optional[str] = Field("enhanced_agentic", description="Agentic strategy to use")
     enable_rag: bool = Field(False, description="Enable RAG for domain knowledge")
-    max_agents: int = Field(5, description="Maximum number of agents to use")
+    max_agents: int = Field(3, description="Maximum number of agents to use")
     confidence_threshold: float = Field(0.7, description="Minimum confidence threshold")
     enable_cross_validation: bool = Field(True, description="Enable agent cross-validation")
 
@@ -46,7 +40,7 @@ class AgentResult(BaseModel):
     processing_time: float
     tokens_used: int
     field_confidences: Dict[str, float]
-    validation_errors: List[str] = []
+    validation_errors: List[str] = Field(default_factory=list)
 
 
 class AgenticExtractionResult(BaseModel):
@@ -63,26 +57,4 @@ class AgenticExtractionResult(BaseModel):
     total_tokens_used: int
     agents_used: int
     validation_errors: List[str] = Field(default_factory=list)
-    performance_metrics: Dict[str, Any] = Field(default_factory=dict)
-
-
-class SchemaSection(BaseModel):
-    """A section of a complex schema for agent specialization"""
-    section_id: str
-    section_name: str
-    schema_part: Dict[str, Any]
-    priority: int = Field(1, description="Priority level (1-5)")
-    complexity_score: float
-    agent_assignment: Optional[AgentRole] = None
-
-
-class AgenticTask(BaseModel):
-    """Task assigned to an agent"""
-    task_id: str
-    agent_role: AgentRole
-    description: str
-    input_text: str
-    schema_section: Optional[SchemaSection] = None
-    dependencies: List[str] = Field(default_factory=list)
-    tools_available: List[str] = Field(default_factory=list)
-    context: Dict[str, Any] = Field(default_factory=dict) 
+    performance_metrics: Dict[str, Any] = Field(default_factory=dict) 
